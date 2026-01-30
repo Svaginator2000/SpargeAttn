@@ -1,7 +1,7 @@
 name: Build SpargeAttn Wheels
 
 on:
-  workflow_dispatch: # Чтобы запустить кнопку вручную
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,9 +16,13 @@ jobs:
           python-version: '3.13'
 
       - name: Install CUDA
-        uses: jimmy-park/cuda-toolkit@v0.2.19
+        uses: Jimver/cuda-toolkit@v0.2.21
+        id: cuda-toolkit
         with:
           cuda: '13.0.0'
+          method: 'network'
+          # Оставляем только нужные компоненты, чтобы ускорить сборку
+          sub-packages: '["nvcc", "cudart", "nvrtc", "visual_studio_integration"]'
 
       - name: Install Build Dependencies
         run: |
@@ -28,14 +32,18 @@ jobs:
 
       - name: Build Wheel
         run: |
-          export CUDA_HOME=/usr/local/cuda-13.0
+          # Автоматически находим путь к установленному CUDA
+          export CUDA_HOME=${{ steps.cuda-toolkit.outputs.cuda-path }}
           export PATH=$CUDA_HOME/bin:$PATH
-          # Ограничим архитектуры под ваши карты (30/40 серия), чтобы собрать быстрее
+          export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+          
+          # Ограничим архитектуры под ваши карты (30/40 серия)
           export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9"
+          
           python setup.py bdist_wheel
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: spargeattn-wheel
+          name: spargeattn-wheel-py313-cuda13
           path: dist/*.whl
