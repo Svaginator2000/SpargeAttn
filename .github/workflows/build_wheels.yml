@@ -2,50 +2,39 @@ name: Build SpargeAttn Wheels
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
-  build:
+  build_wheels:
     runs-on: ubuntu-22.04
+    container:
+      image: pytorch/manylinux-builder:cuda13.0
+    
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-
+      
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install CUDA 13.0 (Manual)
         run: |
-          # Добавляем официальный репозиторий NVIDIA
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-          sudo dpkg -i cuda-keyring_1.1-1_all.deb
-          sudo apt-get update
-          # Устанавливаем только необходимые компоненты CUDA 13.0
-          sudo apt-get -y install cuda-nvcc-13-0 cuda-cudart-dev-13-0 cuda-libraries-dev-13-0 libcusparse-dev-13-0 libcublas-dev-13-0
-
-      - name: Install Build Dependencies
+          export PATH="/opt/python/cp313-cp313/bin:$PATH"
+          python --version
+      
+      - name: Install dependencies
         run: |
-          pip install --upgrade pip setuptools wheel
-          # Ставим Torch 2.10.0 под CUDA 13
-          pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cu130
-          pip install triton
-
-      - name: Build Wheel
+          /opt/python/cp313-cp313/bin/pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cu130
+          /opt/python/cp313-cp313/bin/pip install ninja packaging wheel setuptools
+      
+      - name: Build wheel
         run: |
-          # Настраиваем пути к вручную установленной CUDA
           export CUDA_HOME=/usr/local/cuda-13.0
           export PATH=$CUDA_HOME/bin:$PATH
           export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
-          
-          # Ограничим архитектуры (8.0-9.0 охватывает RTX 30, 40 и 50 серии)
-          export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
-          
-          # Сборка
-          python setup.py bdist_wheel
-
-      - name: Upload Artifact
+          export TORCH_CUDA_ARCH_LIST="8.9"
+          /opt/python/cp313-cp313/bin/python setup.py bdist_wheel
+      
+      - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: spargeattn-wheel-py313-cuda13
+          name: spargeattn-wheels
           path: dist/*.whl
