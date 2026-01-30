@@ -9,29 +9,34 @@ jobs:
   build_wheels:
     runs-on: ubuntu-22.04
     container:
-      image: pytorch/manylinux-builder:cuda13.0
+      image: nvidia/cuda:13.0.0-devel-ubuntu22.04
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Set up Python
+      - name: Install Python 3.13
         run: |
-          export PATH="/opt/python/cp313-cp313/bin:$PATH"
-          python --version
+          apt-get update
+          apt-get install -y software-properties-common
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get update
+          apt-get install -y python3.13 python3.13-dev python3.13-venv python3-pip git
+          update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1
       
       - name: Install dependencies
         run: |
-          /opt/python/cp313-cp313/bin/pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cu130
-          /opt/python/cp313-cp313/bin/pip install ninja packaging wheel setuptools
+          python3 -m pip install --upgrade pip
+          pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cu130
+          pip install ninja packaging wheel setuptools
       
       - name: Build wheel
         run: |
-          export CUDA_HOME=/usr/local/cuda-13.0
+          export CUDA_HOME=/usr/local/cuda
           export PATH=$CUDA_HOME/bin:$PATH
           export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
           export TORCH_CUDA_ARCH_LIST="8.9"
-          /opt/python/cp313-cp313/bin/python setup.py bdist_wheel
+          python3 setup.py bdist_wheel
       
       - name: Upload wheels
         uses: actions/upload-artifact@v4
