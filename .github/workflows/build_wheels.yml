@@ -1,0 +1,41 @@
+name: Build SpargeAttn Wheels
+
+on:
+  workflow_dispatch: # Чтобы запустить кнопку вручную
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install CUDA
+        uses: jimmy-park/cuda-toolkit@v0.2.19
+        with:
+          cuda: '13.0.0'
+
+      - name: Install Build Dependencies
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cu130
+          pip install triton
+
+      - name: Build Wheel
+        run: |
+          export CUDA_HOME=/usr/local/cuda-13.0
+          export PATH=$CUDA_HOME/bin:$PATH
+          # Ограничим архитектуры под ваши карты (30/40 серия), чтобы собрать быстрее
+          export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9"
+          python setup.py bdist_wheel
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spargeattn-wheel
+          path: dist/*.whl
